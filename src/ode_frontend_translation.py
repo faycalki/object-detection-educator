@@ -26,6 +26,12 @@ st.sidebar.markdown(
 
 uploaded_file = st.file_uploader("Upload an image or video file", type=["jpg", "jpeg", "png", "mp4"])
 
+# Language selection for translation
+target_language = st.sidebar.selectbox(
+    "Select language for object names translation:",
+    ('en', 'es', 'fr', 'de', 'zh-cn')  # Add more languages as needed
+)
+
 if uploaded_file is not None:
     file_type = uploaded_file.type
     filename = uploaded_file.name  # Preserve the original filename
@@ -66,11 +72,12 @@ if uploaded_file is not None:
                     data={
                         'auto_select': 'true' if auto_select == 'Automatic' else 'false',
                         'min_confidence': min_confidence if auto_select == 'Automatic' else None,
-                        'model_size': model_size if auto_select == 'Manual' else None
+                        'model_size': model_size if auto_select == 'Manual' else None,
+                        'target_language': target_language
                     }
                 )
 
-                if  response.status_code == 200:
+                if response.status_code == 200:
                     try:
                         annotated_image_bytes = io.BytesIO(response.content)
                         annotated_image = Image.open(annotated_image_bytes)
@@ -88,7 +95,8 @@ if uploaded_file is not None:
                             data={
                                 'auto_select': 'true' if auto_select == 'Automatic' else 'false',
                                 'min_confidence': min_confidence if auto_select == 'Automatic' else None,
-                                'model_size': model_size if auto_select == 'Manual' else None
+                                'model_size': model_size if auto_select == 'Manual' else None,
+                                'target_language': target_language
                             }
                         )
 
@@ -106,7 +114,7 @@ if uploaded_file is not None:
                                 st.write("Detections:")
                                 for detection in detections:
                                     st.write(
-                                        f"{detection['name']} - Confidence: {detection['confidence']:.2f} - Box: {detection['box']}"
+                                        f"{detection['translated_name']} - Confidence: {detection['confidence']:.2f} - Box: {detection['box']}"
                                     )
 
                                 st.download_button(
@@ -160,7 +168,8 @@ if uploaded_file is not None:
                     data={
                         'auto_select': 'true' if auto_select == 'Automatic' else 'false',
                         'min_confidence': min_confidence if auto_select == 'Automatic' else None,
-                        'model_size': model_size if auto_select == 'Manual' else None
+                        'model_size': model_size if auto_select == 'Manual' else None,
+                        'target_language': target_language
                     }
                 )
 
@@ -193,6 +202,7 @@ st.markdown(
         - `auto_select`: `true` for automatic model selection, `false` for manual model selection.
         - `min_confidence` (optional): Minimum confidence for automatic model selection (default is 0.9).
         - `model_size` (optional): Model size for manual model selection (`n`, `s`, `m`, `b`, `l`, `x`).
+        - `target_language` (optional): Language code for object names translation (default is 'en').
       - **Response:** Annotated image.
 
     - **POST /get_detections**
@@ -202,7 +212,8 @@ st.markdown(
         - `auto_select`: `true` for automatic model selection, `false` for manual model selection.
         - `min_confidence` (optional): Minimum confidence for automatic model selection (default is 0.9).
         - `model_size` (optional): Model size for manual model selection (`n`, `s`, `m`, `b`, `l`, `x`).
-      - **Response:** JSON object containing detection data.
+        - `target_language` (optional): Language code for object names translation (default is 'en').
+      - **Response:** JSON object containing detection data with translated names.
 
     - **POST /detect_video**
       - **Description:** Detect objects in a video.
@@ -211,6 +222,7 @@ st.markdown(
         - `auto_select`: `true` for automatic model selection, `false` for manual model selection.
         - `min_confidence` (optional): Minimum confidence for automatic model selection (default is 0.9).
         - `model_size` (optional): Model size for manual model selection (`n`, `s`, `m`, `b`, `l`, `x`).
+        - `target_language` (optional): Language code for object names translation (default is 'en').
       - **Response:** Annotated video.
     """
 )
