@@ -9,7 +9,7 @@ import tempfile
 import cv2
 from werkzeug.utils import secure_filename
 import threading
-from googletrans import Translator
+from deep_translator import GoogleTranslator
 
 app = Flask(__name__)
 
@@ -44,34 +44,16 @@ DEFAULT_MINIMUM_INFERENCE = 0.9
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB limit for uploads
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
-translator = Translator()
-
-#def translate_name(name, target_language):
-#    print(f"Translating: {name}")
-#    try:
-#        translated = translator.translate(text=name, ay="en", dest=target_language)
-#        if not translated or not hasattr(translated, 'text'):
-#            print("Error: Translation result is invalid.")
-#            return name
-#        translated_text = translated.text
-#        print(f"Translated as: {translated_text}")
-#        return translated_text
-#    except Exception as e:
-#        print(f"Translation error: {e}")
-#        return name  # Return original name if translation fails
 def translate_name(name, target_language):
-    string = f"{name}"
     try:
-        translated = translator.translate(text=string, ay="en", dest=target_language)
-        if not translated or not hasattr(translated, 'text'):
-            print("Error: Translation result is invalid.")
-            return name
-        translated_text = translated.text
-        print(f"Translated as: {translated_text}")
+        translated_text = GoogleTranslator(source='en', target=target_language).translate(name)
+        print(f"Translated '{name}' as: '{translated_text}'")
         return translated_text
     except Exception as e:
         print(f"Translation error: {e}")
         return name  # Return original name if translation fails
+
+
 def detect_objects(image_path, model_size='n', target_language='en'):
     model = models[model_size]
     print(f"Using model size: {model_size} for detection in: {image_path}")
