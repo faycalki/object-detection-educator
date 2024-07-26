@@ -10,17 +10,16 @@ Citation:
   arXiv preprint arXiv:2405.14458, 2024
 """
 
-from flask import Flask, request, jsonify, send_file
-import torch
 import os
-import wget
-import numpy as np
-from io import BytesIO
-from PIL import Image
 import tempfile
-import cv2
-from werkzeug.utils import secure_filename
 import threading
+
+import cv2
+import numpy as np
+import wget
+from PIL import Image
+from flask import Flask, request, jsonify, send_file
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 

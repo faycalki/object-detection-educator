@@ -1,7 +1,54 @@
+import graphviz
+from graphviz import Digraph
 import streamlit as st
 from PIL import Image
 import requests
 import io
+from io import BytesIO  # Import BytesIO to handle byte streams
+
+
+
+def create_single_model_tree(model_size, detections, min_confidence):
+    dot = Digraph()
+    dot.attr(rankdir='TB', size='10,10', ratio='fill')  # Adjust size and ratio
+
+    # Add the root node for the model
+    dot.node('root', f'YOLOv10{model_size}', shape='rect', width='2.5', height='1.0', fontsize='12')
+
+    # Create branches for each detection
+    for j, detection in enumerate(detections):
+        detection_name = detection.get('name', f'Detection_{j}')
+        detection_node = f'detection_{j}'
+        if detection['confidence'] >= min_confidence:
+            dot.edge('root', detection_node, label=f'{detection_name}: Pass', color='green', fontsize='10')
+        else:
+            dot.edge('root', detection_node, label=f'{detection_name}: Fail', color='red', fontsize='10')
+
+        # Add detection nodes
+        dot.node(detection_node, f'{detection_name}\n(Confidence: {detection["confidence"]})', shape='ellipse',
+                 fontsize='10')
+
+    return dot
+
+def visualize_decision_tree(detections, min_confidence, model_size):
+    st.write("### Decision Tree Visualization")
+    st.write(f"Decision-making process based on confidence intervals for the model YOLOv10{model_size}:")
+
+    # Validate the model size
+    model_sizes = ['n', 's', 'm', 'b', 'l', 'x']
+    if model_size not in model_sizes:
+        st.error(f"Model size {model_size} is not valid.")
+        return
+
+    # Draw the decision tree for the specified model size
+    dot = create_single_model_tree(model_size, detections, min_confidence)
+
+    # Render the decision tree and display it in Streamlit
+    tree_image = dot.pipe(format='png')
+    st.image(BytesIO(tree_image), caption=f'Decision Tree for YOLOv10{model_size}', use_column_width=True)
+
+
+
 
 # URL of the Flask back-end
 backend_url = 'http://127.0.0.1:5000'
@@ -109,12 +156,12 @@ if uploaded_file is not None:
                                 detections_data = detections_response.json()
                                 detections = detections_data['detections']
                                 model_size = detections_data['model_size']
-                                st.write(f"Model used for detections: YOLOv10{model_size}")
+                                visualize_decision_tree(detections, min_confidence, model_size)  # Visualize decision tree
 
                                 st.write("Detections:")
                                 for detection in detections:
                                     st.write(
-                                        f"{detection['translated_name']} - Confidence: {detection['confidence']:.2f} - Box: {detection['box']}"
+                                        f"{detection['translated_name']} - Confidence: {detection['confidence']:.2f}object-detection-educator - Box: {detection['box']}"
                                     )
 
                                 st.download_button(
@@ -192,6 +239,17 @@ st.markdown(
     ## API Documentation
 
     You can use this API to integrate object detection into your applications. The API provides endpoints to detect objects in images and videos.
+
+    ### Decision Tree Logic
+
+    The backend uses a decision tree to select the most appropriate YOLOv10 model based on the confidence intervals of detected objects. 
+
+    **Model Selection Process:**
+
+    1. **Set a minimum confidence threshold.**
+    2. **Evaluate detections using each model size:**
+       - If all detections meet the minimum confidence, select that model size.
+       - If no models meet the confidence threshold, the largest model (`x`) is used.
 
     ### Endpoints
 

@@ -1,15 +1,26 @@
-from flask import Flask, request, jsonify, send_file
-import torch
+"""
+Module summary: Object Detection using YOLOv10 model.
+
+Author: Faycal Kilali
+Credits: yolov10
+
+Citation:
+- YOLOv10: Real-Time End-to-End Object Detection
+  Ao Wang, Hui Chen, Lihao Liu, Kai Chen, Zijia Lin, Jungong Han, Guiguang Ding
+  arXiv preprint arXiv:2405.14458, 2024
+"""
+
 import os
-import wget
-import numpy as np
-from io import BytesIO
-from PIL import Image
 import tempfile
-import cv2
-from werkzeug.utils import secure_filename
 import threading
+
+import cv2
+import numpy as np
+import wget
+from PIL import Image
 from deep_translator import GoogleTranslator
+from flask import Flask, request, jsonify, send_file
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
@@ -80,12 +91,23 @@ def detect_objects(image_path, model_size='n', target_language='en'):
 
     return annotated_image_pil, detections
 
+
+def choose_model_based_on_confidence(detections, min_confidence):
+    """
+    Choose the model based on the detections' confidence levels.
+    """
+    for size in model_sizes:
+        if all(d['confidence'] >= min_confidence for d in detections):
+            return size
+    return model_sizes[-1]
+
 def get_best_model(image_path, min_confidence, target_language='en'):
     for size in model_sizes:
         _, detections = detect_objects(image_path, model_size=size, target_language=target_language)
         if all(d['confidence'] >= min_confidence for d in detections):
             return size, detections
     return model_sizes[-1], detections
+
 
 def detect_objects_in_video(video_path, model_size='n', target_language='en'):
     model = models[model_size]
@@ -119,6 +141,7 @@ def detect_objects_in_video(video_path, model_size='n', target_language='en'):
     out.release()
 
     return temp_output_file.name
+
 
 def get_best_model_for_video(video_path, min_confidence, target_language='en'):
     cap = cv2.VideoCapture(video_path)
