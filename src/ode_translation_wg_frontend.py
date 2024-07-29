@@ -5,6 +5,7 @@ from PIL import Image
 import requests
 import io
 from io import BytesIO
+import random
 
 
 def create_decision_tree():
@@ -46,41 +47,42 @@ def create_decision_tree():
     # Min Confidence Check for Automatic
     dot.node('img_conf_check', 'Min Confidence Check', shape='rect')
     dot.node('vid_conf_check', 'Min Confidence Check', shape='rect')
-    dot.edge('img_auto', 'img_conf_check')
-    dot.edge('vid_auto', 'vid_conf_check')
+    dot.edge('img_auto', 'img_conf_check', xlabel='Check')
+    dot.edge('vid_auto', 'vid_conf_check', xlabel='Check')
 
     # Model Size Selection for Manual
     dot.node('img_model_size', 'Model Size Selection', shape='rect')
     dot.node('vid_model_size', 'Model Size Selection', shape='rect')
-    dot.edge('img_manual', 'img_model_size')
-    dot.edge('vid_manual', 'vid_model_size')
+    dot.edge('img_manual', 'img_model_size', xlabel='Select')
+    dot.edge('vid_manual', 'vid_model_size', xlabel='Select')
 
     # Min Confidence Check Result
     dot.node('img_pass', 'Pass (≥)', shape='ellipse', color='green')
     dot.node('img_fail', 'Fail (<)', shape='ellipse', color='red')
-    dot.edge('img_conf_check', 'img_pass', label='Yes')
-    dot.edge('img_conf_check', 'img_fail', label='No')
+    dot.edge('img_conf_check', 'img_pass', xlabel='Yes')
+    dot.edge('img_conf_check', 'img_fail', xlabel='No')
 
     dot.node('vid_pass', 'Pass (≥)', shape='ellipse', color='green')
     dot.node('vid_fail', 'Fail (<)', shape='ellipse', color='red')
-    dot.edge('vid_conf_check', 'vid_pass', label='Yes')
-    dot.edge('vid_conf_check', 'vid_fail', label='No')
+    dot.edge('vid_conf_check', 'vid_pass', xlabel='Yes')
+    dot.edge('vid_conf_check', 'vid_fail', xlabel='No')
 
     # Largest Model (Default x) for Fail Case
     dot.node('img_largest_model', 'Use Largest Model (Default x)', shape='rect')
     dot.node('vid_largest_model', 'Use Largest Model (Default x)', shape='rect')
-    dot.edge('img_fail', 'img_largest_model')
-    dot.edge('vid_fail', 'vid_largest_model')
+    dot.edge('img_fail', 'img_largest_model', xlabel='Fallback')
+    dot.edge('vid_fail', 'vid_largest_model', xlabel='Fallback')
 
     # Final Detection Outcome
     dot.node('img_detection_outcome', 'Detection Outcome', shape='rect')
     dot.node('vid_detection_outcome', 'Detection Outcome', shape='rect')
-    dot.edge('img_pass', 'img_detection_outcome', label='Use Model Size')
-    dot.edge('img_largest_model', 'img_detection_outcome', label='Use Largest Model')
-    dot.edge('vid_pass', 'vid_detection_outcome', label='Use Model Size')
-    dot.edge('vid_largest_model', 'vid_detection_outcome', label='Use Largest Model')
+    dot.edge('img_pass', 'img_detection_outcome', xlabel='Proceed')
+    dot.edge('img_largest_model', 'img_detection_outcome', xlabel='Proceed')
+    dot.edge('vid_pass', 'vid_detection_outcome', xlabel='Proceed')
+    dot.edge('vid_largest_model', 'vid_detection_outcome', xlabel='Proceed')
 
     return dot
+
 
 
 def create_single_model_tree(model_size, detections, min_confidence):
@@ -114,6 +116,48 @@ def visualize_decision_tree(detections, min_confidence, model_size):
 
     tree_image = dot.pipe(format='png')
     st.image(BytesIO(tree_image), caption=f'Decision Tree for YOLOv10{model_size}', use_column_width=True)
+
+
+def display_guessing_game(translations):
+    if len(translations) == 0:
+        st.write("No objects detected, game cannot be started.")
+        return
+
+    # Initialize session state variables if they don't exist
+    if 'target' not in st.session_state:
+        st.session_state.target = random.choice(translations)
+        st.session_state.guesses = []  # List to keep track of all guesses
+        st.session_state.results = []  # List to keep track of results for each guess
+
+    st.write(f"### Guess the Translated Word")
+    st.write(f"Translate this word: **{st.session_state.target}**")
+
+    with st.form(key='guess_form', clear_on_submit=True):
+        guess = st.text_input("Enter your guess:", key='guess_input')
+        submit_button = st.form_submit_button("Submit Guess")
+
+        if submit_button:
+            if guess:  # Check if the guess is not empty
+                is_correct = guess.lower() == st.session_state.target.lower()
+                st.session_state.guesses.append(guess)
+                st.session_state.results.append("Correct! 🎉" if is_correct else "Incorrect. 😔")
+            else:
+                st.warning("Please enter a guess before submitting.")
+
+    # Display all previous guesses and their results
+    if st.session_state.guesses:
+        st.write("### Previous Guesses:")
+        for i, (guess, result) in enumerate(zip(st.session_state.guesses, st.session_state.results)):
+            st.write(f"Guess {i + 1}: **{guess}** - {result}")
+
+    # Optionally, reset game after a certain condition is met
+    if st.button("Reset Game"):
+        st.session_state.target = random.choice(translations)
+        st.session_state.guesses = []
+        st.session_state.results = []
+
+
+
 
 backend_url = 'http://127.0.0.1:5000'
 
@@ -206,10 +250,12 @@ if uploaded_file is not None:
                             if detections:
                                 visualize_decision_tree(detections, min_confidence, model_size)
 
+
+
                                 st.write("Detections:")
                                 for detection in detections:
                                     st.write(
-                                        f"{detection['translated_name']} - Confidence: {detection['confidence']:.2f} - Box: {detection['box']}"
+                                        f"{detection['name']} - Confidence: {detection['confidence']:.2f} - Box: {detection['box']}"
                                     )
 
                                 st.download_button(
