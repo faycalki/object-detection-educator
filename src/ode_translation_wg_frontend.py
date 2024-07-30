@@ -1,11 +1,37 @@
-import graphviz
-from graphviz import Digraph
+import io
+import random
+from io import BytesIO
+
+import requests
 import streamlit as st
 from PIL import Image
-import requests
-import io
-from io import BytesIO
-import random
+from graphviz import Digraph
+
+"""
+Creates a decision tree diagram using the `graphviz` library. The diagram represents the flow of the object detection process.
+
+Returns:
+    dot (Digraph): The decision tree diagram.
+
+The decision tree diagram consists of the following nodes and edges:
+
+- Input Stage: The root node representing the input stage of the object detection process.
+- Image: A node representing the image input stage.
+- Video: A node representing the video input stage.
+- Detection Process: Two nodes representing the detection process for images and videos.
+- Model Selection Mode: Two nodes representing the model selection mode for images and videos.
+- Automatic: Two nodes representing the automatic model selection mode for images and videos.
+- Manual: Two nodes representing the manual model selection mode for images and videos.
+- Min Confidence Check: Two nodes representing the min confidence check for automatic model selection mode for images and videos.
+- Model Size Selection: Two nodes representing the model size selection for manual model selection mode for images and videos.
+- Pass (≥): Two nodes representing the pass condition for images and videos.
+- Fail (<): Two nodes representing the fail condition for images and videos.
+- Use Largest Model (Default x): Two nodes representing the fallback condition for fail condition for images and videos.
+- Detection Outcome: Two nodes representing the detection outcome for images and videos.
+
+The edges represent the flow of the object detection process.
+
+"""
 
 
 def create_decision_tree():
@@ -84,6 +110,20 @@ def create_decision_tree():
     return dot
 
 
+"""
+    Create a directed graph (dot) representation of a single model tree based on the given model size, detections, and minimum confidence.
+
+    Parameters:
+        model_size (str): The size of the model.
+        detections (List[Dict[str, Union[str, float]]]): A list of dictionaries representing the detections. Each dictionary contains the following keys:
+            - 'translated_name' (str, optional): The translated name of the detection. Defaults to 'Detection_{j}' if not provided.
+            - 'confidence' (float): The confidence level of the detection.
+        min_confidence (float): The minimum confidence level required for a detection to be considered a pass.
+
+    Returns:
+        Digraph: The directed graph representing the single model tree.
+"""
+
 
 def create_single_model_tree(model_size, detections, min_confidence):
     dot = Digraph()
@@ -98,9 +138,26 @@ def create_single_model_tree(model_size, detections, min_confidence):
         color = 'green' if detection['confidence'] >= min_confidence else 'red'
         dot.edge('root', detection_node, label=label, color=color, fontsize='10')
 
-        dot.node(detection_node, f'{detection_name}\n(Confidence: {detection["confidence"]:.2f})', shape='ellipse', fontsize='10')
+        dot.node(detection_node, f'{detection_name}\n(Confidence: {detection["confidence"]:.2f})', shape='ellipse',
+                 fontsize='10')
 
     return dot
+
+
+"""
+    Visualize the decision tree based on the confidence intervals for the specified model size.
+
+    Parameters:
+        detections (List[Dict[str, Union[str, float]]]): A list of dictionaries representing the detections.
+            Each dictionary contains the following keys:
+            - 'translated_name' (str, optional): The translated name of the detection. Defaults to 'Detection_{j}' if not provided.
+            - 'confidence' (float): The confidence level of the detection.
+        min_confidence (float): The minimum confidence level required for a detection to be considered a pass.
+        model_size (str): The size of the model.
+
+    Returns:
+        None
+"""
 
 
 def visualize_decision_tree(detections, min_confidence, model_size):
@@ -116,6 +173,22 @@ def visualize_decision_tree(detections, min_confidence, model_size):
 
     tree_image = dot.pipe(format='png')
     st.image(BytesIO(tree_image), caption=f'Decision Tree for YOLOv10{model_size}', use_column_width=True)
+
+    """
+    Display a guessing game where the user has to guess the translated word.
+
+    Parameters:
+        translations (list): A list of translated words.
+
+    Returns:
+        None
+
+    This function displays a guessing game where the user has to guess the translated word. It takes a list of translated words as input and checks if the list is empty. If the list is empty, it displays a message indicating that no objects were detected and the game cannot be started. Otherwise, it initializes the session state variables if they don't exist. It selects a random word from the translations list as the target word and initializes the guesses and results lists. It then displays the target word and a form for the user to enter their guess. When the user submits their guess, it checks if the guess is not empty and compares it with the target word. If the guess is correct, it displays a "Correct!" message; otherwise, it displays an "Incorrect" message. It appends the guess and the result to the guesses and results lists, respectively. It then displays all the previous guesses and their results. Finally, it provides an option to reset the game by selecting a new target word and clearing the guesses and results lists.
+
+    Note:
+        This function uses the `st.session_state` object to store and retrieve session state variables.
+
+    """
 
 
 def display_guessing_game(translations):
@@ -157,8 +230,6 @@ def display_guessing_game(translations):
         st.session_state.results = []
 
 
-
-
 backend_url = 'http://127.0.0.1:5000'
 
 st.title('Object Detection and Translation')
@@ -179,7 +250,6 @@ st.write("### Decision Tree for Detection Procedure")
 decision_tree = create_decision_tree()
 tree_image = decision_tree.pipe(format='png')
 st.image(tree_image, caption='Decision Tree for Detection Procedure', use_column_width=True)
-
 
 uploaded_file = st.file_uploader("Upload an image or video file", type=["jpg", "jpeg", "png", "mp4"])
 
@@ -250,8 +320,6 @@ if uploaded_file is not None:
                             if detections:
                                 visualize_decision_tree(detections, min_confidence, model_size)
 
-
-
                                 st.write("Detections:")
                                 for detection in detections:
                                     st.write(
@@ -314,7 +382,8 @@ if uploaded_file is not None:
                         mime='video/mp4'
                     )
                 else:
-                    st.error(f"Error in video object detection. Status code: {response.status_code}, Response content: {response.text}")
+                    st.error(
+                        f"Error in video object detection. Status code: {response.status_code}, Response content: {response.text}")
 
 else:
     st.info("Please upload an image or video.")
