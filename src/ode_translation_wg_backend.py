@@ -50,59 +50,55 @@ for size in model_sizes:
         wget.download(model_urls[size], model_path)
     models[size] = YOLOv10(model_path)
 
-DEFAULT_MINIMUM_INFERENCE = 0.9
+DEFAULT_MINIMUM_INFERENCE = 0.6
 # Maximum file size configuration for FLASK
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB limit for uploads
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
-"""
-Translates a given name from English to the specified target language using the GoogleTranslator class.
-
-Args:
-    name (str): The name to be translated.
-    target_language (str): The target language code to translate the name into.
-
-Returns:
-    str: The translated name if successful, otherwise the original name.
-
-Raises:
-    Exception: If there is an error during the translation process.
-"""
-
 
 def translate_name(name, target_language):
+    """
+    Translates a given name from English to the specified target language using the GoogleTranslator class.
+
+    Args:
+        name (str): The name to be translated.
+        target_language (str): The target language code to translate the name into.
+
+    Returns:
+        str: The translated name if successful, otherwise the original name.
+
+    Raises:
+        Exception: If there is an error during the translation process.
+    """
     try:
         translated_text = GoogleTranslator(source='en', target=target_language).translate(name)
-        print(f"Translated '{name}' as: '{translated_text}'")
         return translated_text
     except Exception as e:
         print(f"Translation error: {e}")
         return name  # Return original name if translation fails
 
 
-"""
-    Detects objects in an image using a specified model size and translates the object names to the target language.
-
-    Args:
-        image_path (str): The path to the image file.
-        model_size (str, optional): The size of the model to use for detection. Defaults to 'n'.
-        target_language (str, optional): The target language code to translate the object names into. Defaults to 'en'.
-
-    Returns:
-        Tuple[PIL.Image.Image, List[Dict[str, Union[str, float, List[int]]]]]: A tuple containing the annotated image as a PIL Image object and a list of dictionaries representing the detected objects. Each dictionary contains the following keys:
-            - 'name' (str): The name of the detected object.
-            - 'confidence' (float): The confidence score of the detection.
-            - 'box' (List[int]): The bounding box coordinates of the detected object.
-            - 'translated_name' (str): The translated name of the detected object.
-
-    Raises:
-        FileNotFoundError: If no results are returned from the model for the given image path.
-        TypeError: If the annotated image is not a numpy array.
-
-"""
-
-
 def detect_objects(image_path, model_size='n', target_language='en'):
+    """
+        Detects objects in an image using a specified model size and translates the object names to the target language.
+
+        Args:
+            image_path (str): The path to the image file.
+            model_size (str, optional): The size of the model to use for detection. Defaults to 'n'.
+            target_language (str, optional): The target language code to translate the object names into. Defaults to 'en'.
+
+        Returns:
+            Tuple[PIL.Image.Image, List[Dict[str, Union[str, float, List[int]]]]]: A tuple containing the annotated image as a PIL Image object and a list of dictionaries representing the detected objects. Each dictionary contains the following keys:
+                - 'name' (str): The name of the detected object.
+                - 'confidence' (float): The confidence score of the detection.
+                - 'box' (List[int]): The bounding box coordinates of the detected object.
+                - 'translated_name' (str): The translated name of the detected object.
+
+        Raises:
+            FileNotFoundError: If no results are returned from the model for the given image path.
+            TypeError: If the annotated image is not a numpy array.
+
+    """
     model = models[model_size]
     print(f"Using model size: {model_size} for detection in: {image_path}")
     results = model(image_path)
@@ -129,50 +125,46 @@ def detect_objects(image_path, model_size='n', target_language='en'):
     return annotated_image_pil, detections
 
 
-"""
-    Choose the model based on the confidence levels of the detections.
-
-    Args:
-        detections (List[Dict[str, Union[str, float, List[int]]]]): A list of dictionaries representing the detected objects. Each dictionary contains the following keys:
-            - 'name' (str): The name of the detected object.
-            - 'confidence' (float): The confidence score of the detection.
-            - 'box' (List[int]): The bounding box coordinates of the detected object.
-            - 'translated_name' (str): The translated name of the detected object.
-        min_confidence (float): The minimum confidence score to consider a detection as valid.
-
-    Returns:
-        str: The model size that meets the minimum confidence requirement among the provided detections.
-
-"""
-
-
 def choose_model_based_on_confidence(detections, min_confidence):
+    """
+        Choose the model based on the confidence levels of the detections.
+
+        Args:
+            detections (List[Dict[str, Union[str, float, List[int]]]]): A list of dictionaries representing the detected objects. Each dictionary contains the following keys:
+                - 'name' (str): The name of the detected object.
+                - 'confidence' (float): The confidence score of the detection.
+                - 'box' (List[int]): The bounding box coordinates of the detected object.
+                - 'translated_name' (str): The translated name of the detected object.
+            min_confidence (float): The minimum confidence score to consider a detection as valid.
+
+        Returns:
+            str: The model size that meets the minimum confidence requirement among the provided detections.
+
+    """
     for size in model_sizes:
         if all(d['confidence'] >= min_confidence for d in detections):
             return size
     return model_sizes[-1]
 
 
-"""
-Get the best model for the given image path based on the confidence levels of the detections.
-
-Args:
-    image_path (str): The path to the image.
-    min_confidence (float): The minimum confidence score to consider a detection as valid.
-    target_language (str, optional): The target language for translation. Defaults to 'en'.
-
-Returns:
-    Tuple[str, List[Dict[str, Union[str, float, List[int]]]]]: A tuple containing the best model size and a list of dictionaries representing the detected objects. Each dictionary contains the following keys:
-        - 'name' (str): The name of the detected object.
-        - 'confidence' (float): The confidence score of the detection.
-        - 'box' (List[int]): The bounding box coordinates of the detected object.
-        - 'translated_name' (str): The translated name of the detected object.
-
-        If no model meets the minimum confidence requirement, the last model size in the `model_sizes` list is returned along with the detections.
-"""
-
-
 def get_best_model(image_path, min_confidence, target_language='en'):
+    """
+    Get the best model for the given image path based on the confidence levels of the detections.
+
+    Args:
+        image_path (str): The path to the image.
+        min_confidence (float): The minimum confidence score to consider a detection as valid.
+        target_language (str, optional): The target language for translation. Defaults to 'en'.
+
+    Returns:
+        Tuple[str, List[Dict[str, Union[str, float, List[int]]]]]: A tuple containing the best model size and a list of dictionaries representing the detected objects. Each dictionary contains the following keys:
+            - 'name' (str): The name of the detected object.
+            - 'confidence' (float): The confidence score of the detection.
+            - 'box' (List[int]): The bounding box coordinates of the detected object.
+            - 'translated_name' (str): The translated name of the detected object.
+
+            If no model meets the minimum confidence requirement, the last model size in the `model_sizes` list is returned along with the detections.
+    """
     for size in model_sizes:
         _, detections = detect_objects(image_path, model_size=size, target_language=target_language)
         if all(d['confidence'] >= min_confidence for d in detections):
@@ -180,28 +172,26 @@ def get_best_model(image_path, min_confidence, target_language='en'):
     return model_sizes[-1], detections
 
 
-"""
-Detects objects in a video using a specified YOLOv10 model size.
-Args:
-    video_path (str): The path to the video file.
-    model_size (str, optional): The size of the YOLOv10 model to use. Defaults to 'n'.
-    target_language (str, optional): The target language for translating object names. Defaults to 'en'.
-Returns:
-    str: The path to the temporary video file with annotated frames.
-Raises:
-    FileNotFoundError: If the video file cannot be opened.
-Note:
-    This function uses the YOLOv10 model to detect objects in the video frames. It writes the annotated frames
-    to a temporary video file and returns its path. The annotated frames include bounding boxes and labels
-    for the detected objects. The target_language parameter is used for translating the object names to the
-    specified language.
-Example:
-    >>> detect_objects_in_video('path/to/video.mp4', 'm', 'fr')
-    'path/to/temp_video.mp4'
-"""
-
-
 def detect_objects_in_video(video_path, model_size='n', target_language='en'):
+    """
+    Detects objects in a video using a specified YOLOv10 model size.
+    Args:
+        video_path (str): The path to the video file.
+        model_size (str, optional): The size of the YOLOv10 model to use. Defaults to 'n'.
+        target_language (str, optional): The target language for translating object names. Defaults to 'en'.
+    Returns:
+        str: The path to the temporary video file with annotated frames.
+    Raises:
+        FileNotFoundError: If the video file cannot be opened.
+    Note:
+        This function uses the YOLOv10 model to detect objects in the video frames. It writes the annotated frames
+        to a temporary video file and returns its path. The annotated frames include bounding boxes and labels
+        for the detected objects. The target_language parameter is used for translating the object names to the
+        specified language.
+    Example:
+        >>> detect_objects_in_video('path/to/video.mp4', 'm', 'fr')
+        'path/to/temp_video.mp4'
+    """
     model = models[model_size]
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -235,24 +225,22 @@ def detect_objects_in_video(video_path, model_size='n', target_language='en'):
     return temp_output_file.name
 
 
-"""
-    Get the best model size for a given video file based on the confidence levels of the detected objects.
-
-    Args:
-        video_path (str): The path to the video file.
-        min_confidence (float): The minimum confidence score to consider a detection as valid.
-        target_language (str, optional): The target language for translating object names. Defaults to 'en'.
-
-    Returns:
-        str: The model size that meets the minimum confidence requirement among the detected objects in the first frame of the video. If no detection meets the requirement, the last model size in the list is returned.
-
-    Raises:
-        FileNotFoundError: If the video file cannot be opened or if the first frame of the video cannot be read.
-
-"""
-
-
 def get_best_model_for_video(video_path, min_confidence, target_language='en'):
+    """
+        Get the best model size for a given video file based on the confidence levels of the detected objects.
+
+        Args:
+            video_path (str): The path to the video file.
+            min_confidence (float): The minimum confidence score to consider a detection as valid.
+            target_language (str, optional): The target language for translating object names. Defaults to 'en'.
+
+        Returns:
+            str: The model size that meets the minimum confidence requirement among the detected objects in the first frame of the video. If no detection meets the requirement, the last model size in the list is returned.
+
+        Raises:
+            FileNotFoundError: If the video file cannot be opened or if the first frame of the video cannot be read.
+
+    """
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise FileNotFoundError(f"Could not open video file: {video_path}")
@@ -274,27 +262,26 @@ def get_best_model_for_video(video_path, min_confidence, target_language='en'):
     return model_sizes[-1]
 
 
-"""
-    Schedules the deletion of a file after a specified timeout.
-
-    Args:
-        file_path (str): The path to the file to be deleted.
-        timeout (int): The duration in minutes after which the file will be deleted.
-
-    Returns:
-        None
-
-    This function creates a timer that, after the specified timeout, deletes the file
-    located at the given file path. If the file does not exist at the time of deletion,
-    no action is taken. The function does not return anything.
-
-    Example:
-        delete_file_after_timeout('/path/to/file.txt', 10)
-        # The file at '/path/to/file.txt' will be deleted after 10 minutes.
-"""
-
-
 def delete_file_after_timeout(file_path, timeout):
+    """
+        Schedules the deletion of a file after a specified timeout.
+
+        Args:
+            file_path (str): The path to the file to be deleted.
+            timeout (int): The duration in minutes after which the file will be deleted.
+
+        Returns:
+            None
+
+        This function creates a timer that, after the specified timeout, deletes the file
+        located at the given file path. If the file does not exist at the time of deletion,
+        no action is taken. The function does not return anything.
+
+        Example:
+            delete_file_after_timeout('/path/to/file.txt', 10)
+            # The file at '/path/to/file.txt' will be deleted after 10 minutes.
+    """
+
     def delete_file():
         if os.path.exists(file_path):
             os.remove(file_path)
@@ -302,6 +289,9 @@ def delete_file_after_timeout(file_path, timeout):
 
     threading.Timer(timeout * 60, delete_file).start()
 
+
+@app.route('/detect', methods=['POST'])
+def detect():
     """
     Detect objects in an uploaded image file and return the annotated image.
 
@@ -344,10 +334,6 @@ def delete_file_after_timeout(file_path, timeout):
         http://localhost:5000/detect
 
     """
-
-
-@app.route('/detect', methods=['POST'])
-def detect():
     file = request.files.get('file')
     if not file:
         return jsonify({'error': 'No file uploaded'}), 400
@@ -396,35 +382,33 @@ def detect():
         return jsonify({'error': str(e)}), 500
 
 
-"""
-    Retrieves detections from an uploaded file.
-
-    This function is an endpoint for the '/get_detections' route. It receives a POST request with a file
-    parameter named 'file'. The function checks if the file is present and valid. If not, it returns a
-    JSON response with an error message and a 400 status code.
-
-    If the file is valid, the function retrieves the filename, checks if it is valid, and constructs the
-    file path. It then retrieves the 'auto_select' and 'target_language' parameters from the request
-    form. If 'auto_select' is true, it retrieves the 'min_confidence' parameter as well.
-
-    The function calls either the 'get_best_model' or 'detect_objects' function, depending on the
-    'auto_select' parameter, to determine the 'best_model_size' and 'detections'. It constructs a
-    response data dictionary with the 'model_size' and 'detections' keys.
-
-    If an exception occurs during the process, the function catches it, prints an error message, and
-    returns a JSON response with the error message and a 500 status code.
-
-    Parameters:
-        None
-
-    Returns:
-        A JSON response with the 'model_size' and 'detections' keys, or a JSON response with an error
-        message and a 500 status code.
-"""
-
-
 @app.route('/get_detections', methods=['POST'])
 def get_detections():
+    """
+        Retrieves detections from an uploaded file.
+
+        This function is an endpoint for the '/get_detections' route. It receives a POST request with a file
+        parameter named 'file'. The function checks if the file is present and valid. If not, it returns a
+        JSON response with an error message and a 400 status code.
+
+        If the file is valid, the function retrieves the filename, checks if it is valid, and constructs the
+        file path. It then retrieves the 'auto_select' and 'target_language' parameters from the request
+        form. If 'auto_select' is true, it retrieves the 'min_confidence' parameter as well.
+
+        The function calls either the 'get_best_model' or 'detect_objects' function, depending on the
+        'auto_select' parameter, to determine the 'best_model_size' and 'detections'. It constructs a
+        response data dictionary with the 'model_size' and 'detections' keys.
+
+        If an exception occurs during the process, the function catches it, prints an error message, and
+        returns a JSON response with the error message and a 500 status code.
+
+        Parameters:
+            None
+
+        Returns:
+            A JSON response with the 'model_size' and 'detections' keys, or a JSON response with an error
+            message and a 500 status code.
+    """
     file = request.files.get('file')
     if not file:
         return jsonify({'error': 'No file uploaded'}), 400
@@ -457,43 +441,41 @@ def get_detections():
         return jsonify({'error': str(e)}), 500
 
 
-"""
-    Detects objects in a video file and returns an annotated video file.
-
-    Parameters:
-        None
-
-    Returns:
-        A video file with annotated frames in the 'video/mp4' format, or a JSON response with an error
-        message and a 500 status code.
-
-    Raises:
-        FileNotFoundError: If the video file cannot be opened.
-        Exception: If an error occurs during the object detection process.
-
-    Note:
-        This function expects a POST request with a file parameter named 'file' containing the video file
-        to be uploaded. The function saves the file to the 'UPLOAD_FOLDER' directory, detects objects
-        in the video using the YOLOv10 model, and returns an annotated video file. The 'auto_select'
-        parameter determines whether to automatically select the model size based on the minimum
-        confidence, or to use a manually selected model size. The 'target_language' parameter is used
-        for translating object names to the specified language.
-
-    Example:
-        POST /detect_video
-        {
-            "file": <video file>,
-            "auto_select": true,
-            "min_confidence": 0.9,
-            "target_language": "en"
-        }
-        Response:
-            <annotated video file>
-"""
-
-
 @app.route('/detect_video', methods=['POST'])
 def detect_video():
+    """
+        Detects objects in a video file and returns an annotated video file.
+
+        Parameters:
+            None
+
+        Returns:
+            A video file with annotated frames in the 'video/mp4' format, or a JSON response with an error
+            message and a 500 status code.
+
+        Raises:
+            FileNotFoundError: If the video file cannot be opened.
+            Exception: If an error occurs during the object detection process.
+
+        Note:
+            This function expects a POST request with a file parameter named 'file' containing the video file
+            to be uploaded. The function saves the file to the 'UPLOAD_FOLDER' directory, detects objects
+            in the video using the YOLOv10 model, and returns an annotated video file. The 'auto_select'
+            parameter determines whether to automatically select the model size based on the minimum
+            confidence, or to use a manually selected model size. The 'target_language' parameter is used
+            for translating object names to the specified language.
+
+        Example:
+            POST /detect_video
+            {
+                "file": <video file>,
+                "auto_select": true,
+                "min_confidence": 0.9,
+                "target_language": "en"
+            }
+            Response:
+                <annotated video file>
+    """
     file = request.files.get('file')
     if not file:
         return jsonify({'error': 'No file uploaded'}), 400
@@ -531,22 +513,27 @@ def detect_video():
         return jsonify({'error': str(e)}), 500
 
 
-"""
- Handles the case when a file is too large
- 
- Args:
-     e (Exception): The exception raised when the file is too large
-     
- Returns:
-     tuple: A tuple containing a string message and an integer status code.
-            The message is "File is too large, max file size is 16 MB."
-            The status code is 413.
-"""
-
-
 @app.errorhandler(413)
 def file_too_large(e):
+    """
+     Handles the case when a file is too large
+
+     Args:
+         e (Exception): The exception raised when the file is too large
+
+     Returns:
+         tuple: A tuple containing a string message and an integer status code.
+                The message is "File is too large, max file size is 16 MB."
+                The status code is 413.
+    """
     return "File is too large, max file size is 16 MB.", 413
+
+
+def validate_guess(original_word, guess, target_language):
+    if translate_name(original_word, target_language) == guess:
+        return True
+    else:
+        return False
 
 
 if __name__ == '__main__':
