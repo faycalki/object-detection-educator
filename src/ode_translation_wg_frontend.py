@@ -7,34 +7,37 @@ import streamlit as st
 from PIL import Image
 from graphviz import Digraph
 
-"""
-Creates a decision tree diagram using the `graphviz` library. The diagram represents the flow of the object detection process.
 
-Returns:
-    dot (Digraph): The decision tree diagram.
 
-The decision tree diagram consists of the following nodes and edges:
-
-- Input Stage: The root node representing the input stage of the object detection process.
-- Image: A node representing the image input stage.
-- Video: A node representing the video input stage.
-- Detection Process: Two nodes representing the detection process for images and videos.
-- Model Selection Mode: Two nodes representing the model selection mode for images and videos.
-- Automatic: Two nodes representing the automatic model selection mode for images and videos.
-- Manual: Two nodes representing the manual model selection mode for images and videos.
-- Min Confidence Check: Two nodes representing the min confidence check for automatic model selection mode for images and videos.
-- Model Size Selection: Two nodes representing the model size selection for manual model selection mode for images and videos.
-- Pass (≥): Two nodes representing the pass condition for images and videos.
-- Fail (<): Two nodes representing the fail condition for images and videos.
-- Use Largest Model (Default x): Two nodes representing the fallback condition for fail condition for images and videos.
-- Detection Outcome: Two nodes representing the detection outcome for images and videos.
-
-The edges represent the flow of the object detection process.
-
-"""
 
 
 def create_decision_tree():
+    """
+    Creates a decision tree diagram using the `graphviz` library. The diagram represents the flow of the object detection process.
+
+    Returns:
+        dot (Digraph): The decision tree diagram.
+
+    The decision tree diagram consists of the following nodes and edges:
+
+    - Input Stage: The root node representing the input stage of the object detection process.
+    - Image: A node representing the image input stage.
+    - Video: A node representing the video input stage.
+    - Detection Process: Two nodes representing the detection process for images and videos.
+    - Model Selection Mode: Two nodes representing the model selection mode for images and videos.
+    - Automatic: Two nodes representing the automatic model selection mode for images and videos.
+    - Manual: Two nodes representing the manual model selection mode for images and videos.
+    - Min Confidence Check: Two nodes representing the min confidence check for automatic model selection mode for images and videos.
+    - Model Size Selection: Two nodes representing the model size selection for manual model selection mode for images and videos.
+    - Pass (≥): Two nodes representing the pass condition for images and videos.
+    - Fail (<): Two nodes representing the fail condition for images and videos.
+    - Retry Larger Model: Nodes representing the retrying of a larger model for fail condition for images and videos.
+    - Fallback to Largest Model 'x': Nodes representing the fallback condition when all models fail.
+    - Detection Outcome: Two nodes representing the detection outcome for images and videos.
+
+    The edges represent the flow of the object detection process.
+
+    """
     dot = Digraph()
     dot.attr(rankdir='TB', size='10,10', splines='ortho', nodesep='1', ranksep='1')
 
@@ -93,11 +96,19 @@ def create_decision_tree():
     dot.edge('vid_conf_check', 'vid_pass', xlabel='Yes')
     dot.edge('vid_conf_check', 'vid_fail', xlabel='No')
 
-    # Largest Model (Default x) for Fail Case
+    # Retry Larger Model
+    dot.node('img_retry', 'Retry Larger Model', shape='rect')
+    dot.node('vid_retry', 'Retry Larger Model', shape='rect')
+    dot.edge('img_fail', 'img_retry', xlabel='Retry')
+    dot.edge('vid_fail', 'vid_retry', xlabel='Retry')
+    dot.edge('img_retry', 'img_conf_check', constraint='false', style='dashed')
+    dot.edge('vid_retry', 'vid_conf_check', constraint='false', style='dashed')
+
+    # Fallback to Largest Model 'x' (default)
     dot.node('img_largest_model', 'Use Largest Model (Default x)', shape='rect')
     dot.node('vid_largest_model', 'Use Largest Model (Default x)', shape='rect')
-    dot.edge('img_fail', 'img_largest_model', xlabel='Fallback')
-    dot.edge('vid_fail', 'vid_largest_model', xlabel='Fallback')
+    dot.edge('img_retry', 'img_largest_model', xlabel='All Fail')
+    dot.edge('vid_retry', 'vid_largest_model', xlabel='All Fail')
 
     # Final Detection Outcome
     dot.node('img_detection_outcome', 'Detection Outcome', shape='rect')
@@ -110,22 +121,23 @@ def create_decision_tree():
     return dot
 
 
-"""
-    Create a directed graph (dot) representation of a single model tree based on the given model size, detections, and minimum confidence.
-
-    Parameters:
-        model_size (str): The size of the model.
-        detections (List[Dict[str, Union[str, float]]]): A list of dictionaries representing the detections. Each dictionary contains the following keys:
-            - 'translated_name' (str, optional): The translated name of the detection. Defaults to 'Detection_{j}' if not provided.
-            - 'confidence' (float): The confidence level of the detection.
-        min_confidence (float): The minimum confidence level required for a detection to be considered a pass.
-
-    Returns:
-        Digraph: The directed graph representing the single model tree.
-"""
 
 
 def create_single_model_tree(model_size, detections, min_confidence):
+    """
+        Create a directed graph (dot) representation of a single model tree based on the given model size, detections, and minimum confidence.
+
+        Parameters:
+            model_size (str): The size of the model.
+            detections (List[Dict[str, Union[str, float]]]): A list of dictionaries representing the detections. Each dictionary contains the following keys:
+                - 'translated_name' (str, optional): The translated name of the detection. Defaults to 'Detection_{j}' if not provided.
+                - 'confidence' (float): The confidence level of the detection.
+            min_confidence (float): The minimum confidence level required for a detection to be considered a pass.
+
+        Returns:
+            Digraph: The directed graph representing the single model tree.
+    """
+
     dot = Digraph()
     dot.attr(rankdir='TB', size='10,10', ratio='fill', splines='ortho', nodesep='1', ranksep='1')
 
@@ -144,23 +156,24 @@ def create_single_model_tree(model_size, detections, min_confidence):
     return dot
 
 
-"""
-    Visualize the decision tree based on the confidence intervals for the specified model size.
 
-    Parameters:
-        detections (List[Dict[str, Union[str, float]]]): A list of dictionaries representing the detections.
-            Each dictionary contains the following keys:
-            - 'translated_name' (str, optional): The translated name of the detection. Defaults to 'Detection_{j}' if not provided.
-            - 'confidence' (float): The confidence level of the detection.
-        min_confidence (float): The minimum confidence level required for a detection to be considered a pass.
-        model_size (str): The size of the model.
-
-    Returns:
-        None
-"""
 
 
 def visualize_decision_tree(detections, min_confidence, model_size):
+    """
+        Visualize the decision tree based on the confidence intervals for the specified model size.
+
+        Parameters:
+            detections (List[Dict[str, Union[str, float]]]): A list of dictionaries representing the detections.
+                Each dictionary contains the following keys:
+                - 'translated_name' (str, optional): The translated name of the detection. Defaults to 'Detection_{j}' if not provided.
+                - 'confidence' (float): The confidence level of the detection.
+            min_confidence (float): The minimum confidence level required for a detection to be considered a pass.
+            model_size (str): The size of the model.
+
+        Returns:
+            None
+    """
     st.write("### Decision Tree Visualization")
     st.write(f"Decision-making process based on confidence intervals for the model YOLOv10{model_size}:")
 
@@ -174,6 +187,10 @@ def visualize_decision_tree(detections, min_confidence, model_size):
     tree_image = dot.pipe(format='png')
     st.image(BytesIO(tree_image), caption=f'Decision Tree for YOLOv10{model_size}', use_column_width=True)
 
+
+
+
+def display_guessing_game(translations):
     """
     Display a guessing game where the user has to guess the translated word.
 
@@ -189,9 +206,6 @@ def visualize_decision_tree(detections, min_confidence, model_size):
         This function uses the `st.session_state` object to store and retrieve session state variables.
 
     """
-
-
-def display_guessing_game(translations):
     if len(translations) == 0:
         st.write("No objects detected, game cannot be started.")
         return
