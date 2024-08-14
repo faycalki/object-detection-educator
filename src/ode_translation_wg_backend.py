@@ -50,7 +50,7 @@ for size in model_sizes:
         wget.download(model_urls[size], model_path)
     models[size] = YOLOv10(model_path)
 
-DEFAULT_MINIMUM_INFERENCE = 0.6
+DEFAULT_MINIMUM_INFERENCE = 0.9
 # Maximum file size configuration for FLASK
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB limit for uploads
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
@@ -527,13 +527,6 @@ def file_too_large(e):
                 The status code is 413.
     """
     return "File is too large, max file size is 16 MB.", 413
-
-
-def validate_guess(original_word, guess, target_language):
-    if translate_name(original_word, target_language) == guess:
-        return True
-    else:
-        return False
 
 
 if __name__ == '__main__':
