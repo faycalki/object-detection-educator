@@ -8,9 +8,6 @@ from PIL import Image
 from graphviz import Digraph
 
 
-
-
-
 def create_decision_tree():
     """
     Creates a decision tree diagram using the `graphviz` library. The diagram represents the flow of the object detection process.
@@ -121,8 +118,6 @@ def create_decision_tree():
     return dot
 
 
-
-
 def create_single_model_tree(model_size, detections, min_confidence):
     """
         Create a directed graph (dot) representation of a single model tree based on the given model size, detections, and minimum confidence.
@@ -156,9 +151,6 @@ def create_single_model_tree(model_size, detections, min_confidence):
     return dot
 
 
-
-
-
 def visualize_decision_tree(detections, min_confidence, model_size):
     """
         Visualize the decision tree based on the confidence intervals for the specified model size.
@@ -186,62 +178,6 @@ def visualize_decision_tree(detections, min_confidence, model_size):
 
     tree_image = dot.pipe(format='png')
     st.image(BytesIO(tree_image), caption=f'Decision Tree for YOLOv10{model_size}', use_column_width=True)
-
-
-
-
-def display_guessing_game(translations):
-    """
-    Display a guessing game where the user has to guess the translated word.
-
-    Parameters:
-        translations (list): A list of translated words.
-
-    Returns:
-        None
-
-    This function displays a guessing game where the user has to guess the translated word. It takes a list of translated words as input and checks if the list is empty. If the list is empty, it displays a message indicating that no objects were detected and the game cannot be started. Otherwise, it initializes the session state variables if they don't exist. It selects a random word from the translations list as the target word and initializes the guesses and results lists. It then displays the target word and a form for the user to enter their guess. When the user submits their guess, it checks if the guess is not empty and compares it with the target word. If the guess is correct, it displays a "Correct!" message; otherwise, it displays an "Incorrect" message. It appends the guess and the result to the guesses and results lists, respectively. It then displays all the previous guesses and their results. Finally, it provides an option to reset the game by selecting a new target word and clearing the guesses and results lists.
-
-    Note:
-        This function uses the `st.session_state` object to store and retrieve session state variables.
-
-    """
-    if len(translations) == 0:
-        st.write("No objects detected, game cannot be started.")
-        return
-
-    # Initialize session state variables if they don't exist
-    if 'target' not in st.session_state:
-        st.session_state.target = random.choice(translations)
-        st.session_state.guesses = []  # List to keep track of all guesses
-        st.session_state.results = []  # List to keep track of results for each guess
-
-    st.write(f"### Guess the Translated Word")
-    st.write(f"Translate this word: **{st.session_state.target}**")
-
-    with st.form(key='guess_form', clear_on_submit=True):
-        guess = st.text_input("Enter your guess:", key='guess_input')
-        submit_button = st.form_submit_button("Submit Guess")
-
-        if submit_button:
-            if guess:  # Check if the guess is not empty
-                is_correct = guess.lower() == st.session_state.target.lower()
-                st.session_state.guesses.append(guess)
-                st.session_state.results.append("Correct! 🎉" if is_correct else "Incorrect. 😔")
-            else:
-                st.warning("Please enter a guess before submitting.")
-
-    # Display all previous guesses and their results
-    if st.session_state.guesses:
-        st.write("### Previous Guesses:")
-        for i, (guess, result) in enumerate(zip(st.session_state.guesses, st.session_state.results)):
-            st.write(f"Guess {i + 1}: **{guess}** - {result}")
-
-    # Optionally, reset game after a certain condition is met
-    if st.button("Reset Game"):
-        st.session_state.target = random.choice(translations)
-        st.session_state.guesses = []
-        st.session_state.results = []
 
 
 backend_url = 'http://127.0.0.1:5000'
@@ -337,7 +273,10 @@ if uploaded_file is not None:
                                 st.write("Detections:")
                                 for detection in detections:
                                     st.write(
-                                        f"{detection['name']} - Confidence: {detection['confidence']:.2f} - Box: {detection['box']}"
+                                        f"Name: {detection['name']} - "
+                                        f"Translated Name: {detection['translated_name']} - "
+                                        f"Confidence: {detection['confidence']:.2f} - "
+                                        f"Box: {detection['box']}"
                                     )
 
                                 st.download_button(
@@ -346,6 +285,7 @@ if uploaded_file is not None:
                                     file_name='annotated_image.jpg',
                                     mime='image/jpeg'
                                 )
+
                             else:
                                 st.write("No detections data received.")
                         else:
