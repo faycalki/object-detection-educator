@@ -1,40 +1,85 @@
 import requests
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, Toplevel
+from tkinter import ttk
 import os
 from PIL import Image, ImageTk
 
+def get_supported_languages(server_url):
+    """
+    Retrieves the list of supported languages from the server.
 
-def play_game(image_path, server_url, target_language='en'):
+    Args:
+        server_url (str): The URL of the object detection server.
+
+    Returns:
+        list: A list of supported language codes (e.g., ['en', 'es', 'fr', ...]).
+    """
+    try:
+        response = requests.get(f'{server_url}/supported_languages')
+        response.raise_for_status()
+        languages = response.json().get('supported_languages', [])
+        return languages
+    except Exception as e:
+        messagebox.showerror("Error", f"Error occurred while fetching supported languages: {str(e)}")
+        return []
+
+
+def play_game(image_path, server_url, source_language, target_language):
     """
     Plays the 'Guess the Object' game by interacting with the provided object detection server.
 
     Args:
         image_path (str): The full path to the image file.
         server_url (str): The URL of the object detection server.
-        target_language (str): The language code for translation. Defaults to 'en'.
+        source_language (str): The language code to translate from.
+        target_language (str): The language code to translate to.
 
     Returns:
         None
     """
-    # Step 1: Upload the image and get the detections
+    # Step 1: Upload the image and get the annotated image
     try:
         with open(image_path, 'rb') as img_file:
             files = {'file': img_file}
             data = {
                 'auto_select': 'true',
+                'source_language': source_language,
                 'target_language': target_language
             }
-            response = requests.post(f'{server_url}/get_detections', files=files, data=data)
+            response = requests.post(f'{server_url}/detect', files=files, data=data)
             response.raise_for_status()
-            detections = response.json()['detections']
+
+            # Save the annotated image locally
+            annotated_image_path = os.path.join(os.path.dirname(image_path), f'annotated_{os.path.basename(image_path)}')
+            with open(annotated_image_path, 'wb') as f:
+                f.write(response.content)
     except Exception as e:
-        messagebox.showerror("Error", f"Error occurred during detection: {str(e)}")
+        messagebox.showerror("Error", f"Error occurred during image detection: {str(e)}")
         return
 
-    # Step 2: Start the game
-    messagebox.showinfo("Game Start",
-                        "Welcome to the 'Guess the Object' game! You have 3 attempts to guess the objects in the image.")
+    # Step 2: Get detections separately
+    try:
+        with open(image_path, 'rb') as img_file:
+            files = {'file': img_file}
+            data = {
+                'auto_select': 'true',
+                'source_language': source_language,
+                'target_language': target_language
+            }
+            detection_response = requests.post(f'{server_url}/get_detections', files=files, data=data)
+            detection_response.raise_for_status()
+
+            detections = detection_response.json().get('detections', [])
+            if not detections:
+                messagebox.showerror("Error", "No detections found in the response.")
+                return
+    except Exception as e:
+        messagebox.showerror("Error", f"Error occurred while fetching detections: {str(e)}")
+        return
+
+    # Step 3: Start the game
+    messagebox.showinfo("Game Start", "Welcome to the 'Guess the Object' game! You have 3 attempts to guess the objects in the image.")
 
     hints = [f"The object is '{detection['name']}' in English." for detection in detections]
 
@@ -45,8 +90,6 @@ def play_game(image_path, server_url, target_language='en'):
     effect_label.pack(pady=10)
 
     # Display the annotated image in a new window
-    base_name = os.path.basename(image_path)
-    annotated_image_path = os.path.join(os.path.dirname(image_path), f'annotated_{base_name}')
     try:
         annotated_img = Image.open(annotated_image_path)
 
@@ -74,7 +117,7 @@ def play_game(image_path, server_url, target_language='en'):
     except Exception as e:
         messagebox.showwarning("Warning", f"Failed to display annotated image: {str(e)}")
 
-    # Step 3: Player guesses the objects
+    # Step 4: Player guesses the objects
     for i, detection in enumerate(detections):
         revealed_name = detection['translated_name'][0]  # Start with the first letter
         for attempt in range(3):
@@ -107,7 +150,7 @@ def play_game(image_path, server_url, target_language='en'):
         if correct_guesses == len(detections):
             break
 
-    # Step 4: End game and show results
+    # Step 5: End game and show results
     result_message = f"Game Over! You guessed {correct_guesses} out of {len(detections)} objects correctly."
     if correct_guesses == len(detections):
         result_message += "\nCongratulations! You guessed all the objects!"
@@ -120,28 +163,60 @@ def play_game(image_path, server_url, target_language='en'):
 def upload_image():
     file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.jpg *.png *.jpeg")])
     if file_path:
-        play_game(file_path, server_url_entry.get(), language_var.get())  # Pass the full path directly
+        play_game(file_path, server_url_entry.get(), source_language_var.get(), target_language_var.get())
 
 
 # Creating the GUI
 root = tk.Tk()
 root.title("Guess the Object Game")
 
+# Create a canvas for scrolling
+canvas = tk.Canvas(root)
+canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+# Create a vertical scrollbar linked to the canvas
+scrollbar = tk.Scrollbar(root, orient=tk.VERTICAL, command=canvas.yview)
+scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+# Create a frame inside the canvas which will hold the widgets
+frame = tk.Frame(canvas)
+canvas.create_window((0, 0), window=frame, anchor='nw')
+
+# Update the scrollbar and frame size when the window is resized
+def on_frame_configure(event):
+    canvas.configure(scrollregion=canvas.bbox("all"))
+
+frame.bind("<Configure>", on_frame_configure)
+
 # URL Entry
-tk.Label(root, text="Server URL:").pack(pady=10)
-server_url_entry = tk.Entry(root)
+tk.Label(frame, text="Server URL:").pack(pady=10)
+server_url_entry = tk.Entry(frame)
 server_url_entry.pack(pady=5)
 server_url_entry.insert(0, "http://localhost:5000")
 
-# Language Selection
-tk.Label(root, text="Select Language:").pack(pady=10)
-language_var = tk.StringVar(value='en')
-language_menu = tk.OptionMenu(root, language_var, 'en', 'es', 'fr', 'de', 'zh', 'ja',
-                              'ko')  # Add supported languages here
-language_menu.pack(pady=5)
+# Fetch supported languages dynamically
+supported_languages = get_supported_languages(server_url_entry.get())
+
+# Source Language Selection
+tk.Label(frame, text="Translate From (Source Language):").pack(pady=10)
+source_language_var = tk.StringVar(value='en')
+source_language_menu = ttk.Combobox(frame, textvariable=source_language_var, values=supported_languages)
+source_language_menu.pack(pady=5)
+source_language_menu.set('en')  # Set default value
+
+# Target Language Selection
+tk.Label(frame, text="Translate To (Target Language):").pack(pady=10)
+target_language_var = tk.StringVar(value='en')
+target_language_menu = ttk.Combobox(frame, textvariable=target_language_var, values=supported_languages)
+target_language_menu.pack(pady=5)
+target_language_menu.set('en')  # Set default value
 
 # Upload Button
-upload_button = tk.Button(root, text="Upload Image and Start Game", command=upload_image)
+upload_button = tk.Button(frame, text="Upload Image and Start Game", command=upload_image)
 upload_button.pack(pady=20)
+
+# Configure scrollbar
+canvas.configure(yscrollcommand=scrollbar.set)
+scrollbar.config(command=canvas.yview)
 
 root.mainloop()

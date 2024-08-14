@@ -56,11 +56,42 @@ MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB limit for uploads
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
 
-def translate_name(name, target_language):
+@app.route('/supported_languages', methods=['GET', 'POST'])
+def supported_languages():
     """
-    Translates a given name from English to the specified target language using the GoogleTranslator class.
+    Returns a list of supported languages for translation.
+
+    This function is a Flask route that handles a POST request to the '/supported_languages' endpoint.
+    It returns a JSON response containing the supported languages that the GoogleTranslator library
+    can translate object names into.
 
     Args:
+        None
+
+    Returns:
+        JSON: A JSON object containing the list of supported languages.
+
+    Example:
+        curl -X POST http://localhost:5000/supported_languages
+    """
+    try:
+        # Get the list of supported languages from GoogleTranslator
+        languages = GoogleTranslator().get_supported_languages(as_dict=False)  # output: {arabic: ar, french: fr, english:en etc...}
+
+        response_data = {
+            'supported_languages': languages
+        }
+        return jsonify(response_data)
+    except Exception as e:
+        print(f"Error in /supported_languages: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+def translate_name(name, target_language, source_language):
+    """
+    Translates a given name from the Source Language to the specified target language using the Deep-Learning Language class.
+
+    Args:
+        source_language: The source language to translate from
         name (str): The name to be translated.
         target_language (str): The target language code to translate the name into.
 
@@ -71,18 +102,19 @@ def translate_name(name, target_language):
         Exception: If there is an error during the translation process.
     """
     try:
-        translated_text = GoogleTranslator(source='en', target=target_language).translate(name)
+        translated_text = GoogleTranslator(source=source_language, target=target_language).translate(name)
         return translated_text
     except Exception as e:
         print(f"Translation error: {e}")
         return name  # Return original name if translation fails
 
 
-def detect_objects(image_path, model_size='n', target_language='en'):
+def detect_objects(image_path, model_size='n', target_language='en', source_language='en'):
     """
         Detects objects in an image using a specified model size and translates the object names to the target language.
 
         Args:
+            source_language: The source language to translate from
             image_path (str): The path to the image file.
             model_size (str, optional): The size of the model to use for detection. Defaults to 'n'.
             target_language (str, optional): The target language code to translate the object names into. Defaults to 'en'.
@@ -110,11 +142,12 @@ def detect_objects(image_path, model_size='n', target_language='en'):
     detections = []
     for box in results[0].boxes:
         detection = {
-            'name': results[0].names[int(box.cls)],
+            'name': translate_name(results[0].names[int(box.cls)], source_language='en', target_language=source_language), # Translate from English to the actual source language, as we don't have a hardcoded list of all the objects in every language available.
             'confidence': float(box.conf),
             'box': box.xyxy.tolist(),
-            'translated_name': translate_name(results[0].names[int(box.cls)], target_language)  # Add translated name
+            'translated_name': translate_name(name=results[0].names[int(box.cls)], target_language=target_language, source_language=source_language)  # Add translated name of the object
         }
+        print(detection['name'])
         detections.append(detection)
 
     if isinstance(annotated_image, np.ndarray):
@@ -147,7 +180,7 @@ def choose_model_based_on_confidence(detections, min_confidence):
     return model_sizes[-1]
 
 
-def get_best_model(image_path, min_confidence, target_language='en'):
+def get_best_model(image_path, min_confidence, target_language='en', source_language='en'):
     """
     Get the best model for the given image path based on the confidence levels of the detections.
 
@@ -166,7 +199,7 @@ def get_best_model(image_path, min_confidence, target_language='en'):
             If no model meets the minimum confidence requirement, the last model size in the `model_sizes` list is returned along with the detections.
     """
     for size in model_sizes:
-        _, detections = detect_objects(image_path, model_size=size, target_language=target_language)
+        _, detections = detect_objects(image_path, model_size=size, target_language=target_language, source_language=source_language)
         if all(d['confidence'] >= min_confidence for d in detections):
             return size, detections
     return model_sizes[-1], detections
@@ -330,7 +363,7 @@ def detect():
         Exception: If any other error occurs during the execution of the function.
 
     Example:
-        curl -X POST -F "file=@/path/to/image.jpg" -F "auto_select=true" -F "target_language=en"
+        curl -X POST -F "file=@/path/to/image.jpg" -F "auto_select=true" -F "target_language=en" -F "source_language=en"
         http://localhost:5000/detect
 
     """
@@ -351,18 +384,19 @@ def detect():
 
     auto_select = request.form.get('auto_select') == 'true'
     target_language = request.form.get('target_language', 'en')  # Retrieve target language
+    source_language = request.form.get('source_language', 'en') # Retrieve Source Language
 
     try:
         if auto_select:
             min_confidence = float(request.form.get('min_confidence', DEFAULT_MINIMUM_INFERENCE))
-            best_model_size, detections = get_best_model(file_path, min_confidence, target_language)
+            best_model_size, detections = get_best_model(file_path, min_confidence, target_language, source_language)
         else:
             model_size = request.form.get('model_size', 'n')
             best_model_size, detections = detect_objects(file_path, model_size=model_size,
-                                                         target_language=target_language)
+                                                         target_language=target_language, source_language=source_language)
 
         annotated_image_pil, detections = detect_objects(file_path, model_size=best_model_size,
-                                                         target_language=target_language)
+                                                         target_language=target_language, source_language=source_language)
 
         temp_annotated_image_path = os.path.join(app.config['UPLOAD_FOLDER'], f'annotated_{filename}')
         annotated_image_pil.save(temp_annotated_image_path, 'JPEG')
@@ -420,6 +454,7 @@ def get_detections():
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
     auto_select = request.form.get('auto_select') == 'true'
+    source_language = request.form.get('source_language', 'en')
     target_language = request.form.get('target_language', 'en')  # Retrieve target language
 
     try:
@@ -429,7 +464,7 @@ def get_detections():
         else:
             model_size = request.form.get('model_size', 'n')
             best_model_size, detections = detect_objects(file_path, model_size=model_size,
-                                                         target_language=target_language)
+                                                         target_language=target_language, source_language=source_language)
 
         response_data = {
             'model_size': best_model_size,
