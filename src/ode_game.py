@@ -15,7 +15,7 @@ def get_supported_languages(server_url):
         response.raise_for_status()
         languages = response.json().get('supported_languages', [])
         return languages
-    except Exception as e:
+    except requests.RequestException as e:
         messagebox.showerror("Error", f"Error occurred while fetching supported languages: {str(e)}")
         return []
 
@@ -27,6 +27,10 @@ def show_loading_screen():
 
     label = tk.Label(loading_window, text="Loading... Please wait.", font=("Helvetica", 16))
     label.pack(expand=True)
+
+    # Add a close button to the loading screen
+    close_button = tk.Button(loading_window, text="Close", command=loading_window.destroy)
+    close_button.pack(pady=10)
 
     return loading_window
 
@@ -76,7 +80,7 @@ def play_game(image_path, server_url, source_language, target_language):
                                                 f'annotated_{os.path.basename(image_path)}')
             with open(annotated_image_path, 'wb') as f:
                 f.write(response.content)
-    except Exception as e:
+    except requests.RequestException as e:
         loading_window.destroy()
         messagebox.showerror("Error", f"Error occurred during image detection: {str(e)}")
         return
@@ -97,7 +101,7 @@ def play_game(image_path, server_url, source_language, target_language):
                 loading_window.destroy()
                 messagebox.showerror("Error", "No detections found in the response.")
                 return
-    except Exception as e:
+    except requests.RequestException as e:
         loading_window.destroy()
         messagebox.showerror("Error", f"Error occurred while fetching detections: {str(e)}")
         return
@@ -225,7 +229,7 @@ def upload_image():
         play_game(file_path, server_url_entry.get(), source_language_var.get(), target_language_var.get())
 
 root = tk.Tk()
-root.title("AI Object Detection Educational Tool - Faycal Kilali")
+root.title("AI Object Detection Framework and Educational Tool - Faycal Kilali")
 root.geometry("600x600")
 
 canvas = tk.Canvas(root, bg='lightblue')
@@ -247,6 +251,7 @@ server_url_entry = tk.Entry(frame)
 server_url_entry.pack(pady=5)
 server_url_entry.insert(0, "http://localhost:5000")
 
+# Initialize supported languages
 supported_languages = get_supported_languages(server_url_entry.get())
 
 tk.Label(frame, text="Translate From (Source Language):", bg='lightblue').pack(pady=10)
