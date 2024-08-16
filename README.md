@@ -47,7 +47,7 @@ This project is an AI-based object detection framework and educational tool that
 
 ### GUI Application
 
-![GUI](./resources/GUI_v1.gif)
+![GUI](./resources/gui_v1.gif)
 
 1. Run the Tkinter GUI application:
     ```bash
