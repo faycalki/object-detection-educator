@@ -21,10 +21,13 @@ from PIL import Image
 from deep_translator import GoogleTranslator
 from flask import Flask, request, jsonify, send_file
 from werkzeug.utils import secure_filename
+from datetime import datetime, timedelta
+from ultralytics import YOLOv10
 
 app = Flask(__name__)
 
-from ultralytics import YOLOv10
+# Dictionary to keep track of file creation times
+file_creation_times = {}
 
 # List of model sizes in ascending order
 model_sizes = ['n', 's', 'm', 'b', 'l', 'x']
@@ -54,6 +57,25 @@ DEFAULT_MINIMUM_INFERENCE = 0.9
 # Maximum file size configuration for FLASK
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB limit for uploads
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+
+#TODO: allow creations if the file size differs (because that means its a different language on the bounded boxes)
+def should_create_new_file(filename, timeout=60):
+    """
+    Determines if a new annotated file should be created based on the creation time of the existing file.
+
+    Args:
+        filename (str): The name of the file to check.
+        timeout (int): The time duration in seconds to check against.
+
+    Returns:
+        bool: True if a new file should be created, False otherwise.
+    """
+    current_time = datetime.now()
+    if filename in file_creation_times:
+        creation_time = file_creation_times[filename]
+        if (current_time - creation_time).total_seconds() < timeout:
+            return False
+    return True
 
 
 @app.route('/supported_languages', methods=['GET', 'POST'])
@@ -86,6 +108,7 @@ def supported_languages():
         print(f"Error in /supported_languages: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+
 def translate_name(name, target_language, source_language):
     """
     Translates a given name from the Source Language to the specified target language using the Deep-Learning Language class.
@@ -109,7 +132,7 @@ def translate_name(name, target_language, source_language):
         return name  # Return original name if translation fails
 
 
-def detect_objects(image_path, model_size='n', target_language='en', source_language='en'):
+def detect_objects(image_path, source_language, target_language, model_size='n'):
     """
         Detects objects in an image using a specified model size and translates the object names to the target language.
 
@@ -182,7 +205,7 @@ def choose_model_based_on_confidence(detections, min_confidence):
     return model_sizes[-1]
 
 
-def get_best_model(image_path, min_confidence, target_language='en', source_language='en'):
+def get_best_model(image_path, min_confidence, target_language, source_language):
     """
     Get the best model for the given image path based on the confidence levels of the detections.
 
@@ -201,13 +224,13 @@ def get_best_model(image_path, min_confidence, target_language='en', source_lang
             If no model meets the minimum confidence requirement, the last model size in the `model_sizes` list is returned along with the detections.
     """
     for size in model_sizes:
-        _, detections = detect_objects(image_path, model_size=size, target_language=target_language, source_language=source_language)
+        _, detections = detect_objects(image_path, source_language, target_language, model_size=size)
         if all(d['confidence'] >= min_confidence for d in detections):
             return size, detections
     return model_sizes[-1], detections
 
 
-def detect_objects_in_video(video_path, model_size='n', target_language='en'):
+def detect_objects_in_video(video_path, target_language, model_size='n'):
     """
     Detects objects in a video using a specified YOLOv10 model size.
     Args:
@@ -260,7 +283,7 @@ def detect_objects_in_video(video_path, model_size='n', target_language='en'):
     return temp_output_file.name
 
 
-def get_best_model_for_video(video_path, min_confidence, target_language='en'):
+def get_best_model_for_video(video_path, min_confidence, target_language):
     """
         Get the best model size for a given video file based on the confidence levels of the detected objects.
 
@@ -290,7 +313,7 @@ def get_best_model_for_video(video_path, min_confidence, target_language='en'):
     cv2.imwrite(temp_image_path, frame)
 
     for size in model_sizes:
-        _, detections = detect_objects(temp_image_path, model_size=size, target_language=target_language)
+        _, detections = detect_objects(temp_image_path, 'en', target_language, model_size=size)
         if all(d['confidence'] >= min_confidence for d in detections):
             return size
 
@@ -327,6 +350,7 @@ def delete_file_after_timeout(file_path, timeout):
 
 @app.route('/detect', methods=['POST'])
 def detect():
+    #TODO: prevent the detect endpoint from being hit twice for the same request. Currently, one of the requests returns the annotated image and the detections, whilst the other returns merely the detections.
     """
     Detect objects in an uploaded image file and return the annotated image.
 
@@ -363,11 +387,6 @@ def detect():
     Raises:
         FileNotFoundError: If the uploaded file or the annotated image file is not found.
         Exception: If any other error occurs during the execution of the function.
-
-    Example:
-        curl -X POST -F "file=@/path/to/image.jpg" -F "auto_select=true" -F "target_language=en" -F "source_language=en"
-        http://localhost:5000/detect
-
     """
     file = request.files.get('file')
     if not file:
@@ -394,16 +413,17 @@ def detect():
             best_model_size, detections = get_best_model(file_path, min_confidence, target_language, source_language)
         else:
             model_size = request.form.get('model_size', 'n')
-            best_model_size, detections = detect_objects(file_path, model_size=model_size,
-                                                         target_language=target_language, source_language=source_language)
+            best_model_size, detections = detect_objects(file_path, source_language, target_language, model_size=size)
 
-        annotated_image_pil, detections = detect_objects(file_path, model_size=best_model_size,
-                                                         target_language=target_language, source_language=source_language)
+        # Annotate image and save only if we should create a new file
+        annotated_image_pil, detections = detect_objects(file_path, source_language, target_language, model_size=best_model_size)
 
         temp_annotated_image_path = os.path.join(app.config['UPLOAD_FOLDER'], f'annotated_{filename}')
-        annotated_image_pil.save(temp_annotated_image_path, 'JPEG')
 
-        print(f"Annotated image saved to: {temp_annotated_image_path}")
+        if should_create_new_file(temp_annotated_image_path):
+            annotated_image_pil.save(temp_annotated_image_path, 'JPEG')
+            file_creation_times[temp_annotated_image_path] = datetime.now()
+            print(f"Annotated image saved to: {temp_annotated_image_path}")
 
         delete_file_after_timeout(temp_annotated_image_path, 60)
 
@@ -416,7 +436,6 @@ def detect():
     except Exception as e:
         print(f"Error in /detect: {str(e)}")
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/get_detections', methods=['POST'])
 def get_detections():
@@ -462,7 +481,7 @@ def get_detections():
     try:
         if auto_select:
             min_confidence = float(request.form.get('min_confidence', DEFAULT_MINIMUM_INFERENCE))
-            best_model_size, detections = get_best_model(file_path, min_confidence, target_language)
+            best_model_size, detections = get_best_model(file_path, min_confidence, target_language, source_language)
         else:
             model_size = request.form.get('model_size', 'n')
             best_model_size, detections = detect_objects(file_path, model_size=model_size,
@@ -536,8 +555,7 @@ def detect_video():
         else:
             best_model_size = request.form.get('model_size', 'n')
 
-        annotated_video_path = detect_objects_in_video(file_path, model_size=best_model_size,
-                                                       target_language=target_language)
+        annotated_video_path = detect_objects_in_video(file_path, target_language, model_size=best_model_size)
 
         delete_file_after_timeout(annotated_video_path, 60)
 

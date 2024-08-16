@@ -1,0 +1,9 @@
+#TODO: allow creations if the file size differs (because that means its a different language on the bounded boxes)
+    #TODO: prevent the detect endpoint from being hit twice for the same request. Currently, one of the requests returns the annotated image and the detections, whilst the other returns merely the detections.
+
+#TODO: in the frontend, allow choosing a source and target language
+
+#TODO: finish implementing a source language that isn't english
+
+#TODO: allow choosing a source language and a target language for video annotation
+
