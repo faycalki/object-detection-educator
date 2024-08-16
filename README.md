@@ -1,6 +1,6 @@
 # AI Object Detection Framework and Educational Tool
 
-![Project Logo](logo.webp)
+![Project Logo](./resources/logo.webp)
 
 ![243 Languages Supported](https://img.shields.io/badge/Supports-243%20Languages-brightgreen)
 
