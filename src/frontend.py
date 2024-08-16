@@ -115,6 +115,8 @@ def create_decision_tree():
     dot.edge('vid_pass', 'vid_detection_outcome', xlabel='Proceed')
     dot.edge('vid_largest_model', 'vid_detection_outcome', xlabel='Proceed')
 
+    dot.render('procedural_tree_diagram', format='png', cleanup=True)
+
     return dot
 
 
