@@ -17,6 +17,8 @@ This project is an AI-based object detection framework and educational tool that
   - **Language Support**: Translate object names to 243 languages with conversion capabilities.
   - **GUI Interface**: A graphical user interface for the non-website portion.
 
+
+
 ## Installation
 
 1. Clone the repository:
@@ -45,6 +47,8 @@ This project is an AI-based object detection framework and educational tool that
 
 ### GUI Application
 
+![GUI](./resources/GUI_v1.gif)
+
 1. Run the Tkinter GUI application:
     ```bash
     python educational_game.py
@@ -54,6 +58,8 @@ This project is an AI-based object detection framework and educational tool that
 3. Upload an image to start the educational game.
 
 ### Web Frontend
+
+![GUI](./resources/frontend_v1.gif)
 
 1. Open the Streamlit web interface.
 2. Upload an image or video file.
@@ -77,13 +83,13 @@ To better understand the decision-making process within the frontend, refer to t
 
 This diagram illustrates how decisions are processed from the moment the frontend is initiated:
 
-![Frontend Procedural Tree](procedural_tree_diagram.png)
+![Frontend Procedural Tree](./resources/procedural_tree_diagram.png)
 
 ### Educational Game Procedures
 
 This diagram provides a detailed view of how the game procedures work, outlining the flow from image upload to language selection:
 
-![Educational Game Procedures](ortho_game_procedures.png)
+![Educational Game Procedures](./resources/ortho_game_procedures.png)
 
 ## License
 
