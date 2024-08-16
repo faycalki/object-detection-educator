@@ -9,6 +9,62 @@ import random
 # Global variable to store the PhotoImage object
 img_tk_global = None
 
+from graphviz import Digraph
+
+# Create a new directed graph with the 'dot' layout engine for orthogonal layout
+dot = Digraph(format='png', engine='dot')
+
+# Set global graph attributes for a clearer tree layout
+dot.attr(dpi='100', rankdir='TB', style='solid')
+
+# Add nodes with descriptions
+dot.node('Start', 'Start')
+dot.node('Upload', 'Upload Image')
+dot.node('SelectLang', 'Select Source and Target Language')
+dot.node('FetchLang', 'Fetch Supported Languages')
+dot.node('Loading', 'Show Loading Screen')
+dot.node('SendDetect', 'Send Image to Backend for Detection')
+dot.node('ReceiveImage', 'Receive Annotated Image')
+dot.node('CheckError', 'Check for Detection Errors')
+dot.node('DisplayImage', 'Display Annotated Image')
+dot.node('InitGame', 'Initialize Game')
+dot.node('Guess', 'User Makes Guess')
+dot.node('CheckGuess', 'Check Guess Against Correct Answer')
+dot.node('Correct', 'Correct Guess')
+dot.node('Incorrect', 'Incorrect Guess')
+dot.node('UpdateScore', 'Update Score')
+dot.node('Decrement', 'Decrement Attempts')
+dot.node('ProvideHint', 'Provide Hint (if attempts left)')
+dot.node('AllProcessed', 'All Detections Processed?')
+dot.node('ShowResult', 'Show Game Result')
+dot.node('Repeat', 'Repeat Guessing for Remaining Detections')
+
+# Add edges to connect nodes
+dot.edge('Start', 'Upload')
+dot.edge('Upload', 'SelectLang')
+dot.edge('SelectLang', 'FetchLang')
+dot.edge('FetchLang', 'Loading')
+dot.edge('Loading', 'SendDetect')
+dot.edge('SendDetect', 'ReceiveImage')
+dot.edge('ReceiveImage', 'CheckError')
+dot.edge('CheckError', 'DisplayImage')
+dot.edge('DisplayImage', 'InitGame')
+dot.edge('InitGame', 'Guess')
+dot.edge('Guess', 'CheckGuess')
+dot.edge('CheckGuess', 'Correct', label='Correct Guess')
+dot.edge('CheckGuess', 'Incorrect', label='Incorrect Guess')
+dot.edge('Correct', 'UpdateScore')
+dot.edge('Incorrect', 'Decrement')
+dot.edge('Decrement', 'ProvideHint')
+dot.edge('ProvideHint', 'Guess', label='Attempts Left')
+dot.edge('UpdateScore', 'AllProcessed')
+dot.edge('AllProcessed', 'ShowResult', label='Yes')
+dot.edge('AllProcessed', 'Repeat', label='No')
+dot.edge('Repeat', 'Guess')
+
+# Render the decision tree
+dot.render('ortho_game_procedures', format='png', cleanup=True)
+
 def get_supported_languages(server_url):
     try:
         response = requests.get(f'{server_url}/supported_languages')
