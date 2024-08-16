@@ -68,7 +68,7 @@ This project is an AI-based object detection framework and educational tool that
 
 ## API Documentation
 
-The project also provides an API to integrate object detection into your applications. Detailed API documentation, including endpoint descriptions and usage examples, can be found in the [API.md](API.md) file.
+The project also provides an API to integrate object detection into your applications. Detailed API documentation, including endpoint descriptions and usage examples, can be found in the [API.md](./resources/API.md) file.
 
 ## License
 
