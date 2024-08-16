@@ -60,6 +60,15 @@ This project is an AI-based object detection framework and educational tool that
 3. Choose the model size and language options.
 4. View detection results and download annotated files.
 
+## API Documentation
+
+The project also provides an API to integrate object detection into your applications. Detailed API documentation, including endpoint descriptions and usage examples, can be found in the [API.md](API.md) file.
+
+## License
+
+This project is licensed under the [GNU General Public License v3.0](https://opensource.org/licenses/GPL-3.0). See the [LICENSE](LICENSE) file for more details.
+
+
 ## Visual Workflow
 
 To better understand the decision-making process within the frontend, refer to the following procedural diagrams:
