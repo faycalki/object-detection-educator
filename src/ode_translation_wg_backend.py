@@ -147,6 +147,8 @@ def detect_objects(image_path, model_size='n', target_language='en', source_lang
             'box': box.xyxy.tolist(),
             'translated_name': translate_name(name=results[0].names[int(box.cls)], target_language=target_language, source_language=source_language)  # Add translated name of the object
         }
+        print(type(detection['box']))
+        print(detection['box'])
         print(detection['name'])
         detections.append(detection)
 
